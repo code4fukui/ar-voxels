@@ -1,15 +1,26 @@
+import * as THREE from "https://code4fukui.github.io/three.js/build/three.module.js";
+
 /**
  * @author mr.doob / http://mrdoob.com/
  */
 
-export var Cube = function (width, height, depth) {
+export const createGeometryCube = (width, height, depth) => {
+  const geo = new THREE.BufferGeometry();
 
-	THREE.Geometry.call(this);
+  const vertices = [];
+  const indices = [];
 
-	var scope = this,
-	width_half = width / 2,
-	height_half = height / 2,
-	depth_half = depth / 2;
+	const v = (x, y, z) => vertices.push(x, y, z);
+	const f4 = (i0, i1, i2, i3) => {
+    indices.push(
+      i0, i1, i2,
+      i2, i3, i0,
+    );
+	};
+
+	const width_half = width / 2;
+	const height_half = height / 2;
+	const depth_half = depth / 2;
 
 	v(  width_half,  height_half, -depth_half );
 	v(  width_half, -height_half, -depth_half );
@@ -27,20 +38,8 @@ export var Cube = function (width, height, depth) {
 	f4( 2, 6, 7, 3 );
 	f4( 4, 0, 3, 7 );
 
-	function v(x, y, z) {
 
-		scope.vertices.push( new THREE.Vertex( new THREE.Vector3( x, y, z ) ) );
-	}
-
-	function f4(a, b, c, d) {
-
-		scope.faces.push( new THREE.Face4( a, b, c, d ) );
-	}
-
-	this.computeCentroids();
-	this.computeNormals();
-
-}
-
-Cube.prototype = new THREE.Geometry();
-Cube.prototype.constructor = Cube;
+  geo.setIndex(indices);
+  geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(vertices), 3));
+  return geo;
+};

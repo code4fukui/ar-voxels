@@ -1,11 +1,12 @@
+import * as THREE from "https://code4fukui.github.io/three.js/build/three.module.js";
+
 /**
  * @author mr.doob / http://mrdoob.com/
  * based on http://papervision3d.googlecode.com/svn/trunk/as3/trunk/src/org/papervision3d/objects/primitives/Plane.as
  */
 
-export var Plane = function ( width, height, segments_width, segments_height ) {
-
-	THREE.Geometry.call( this );
+export const createGeometryPlane = ( width, height, segments_width, segments_height ) => {
+  const geo = new THREE.BufferGeometry();
 
 	var ix, iy,
 	width_half = width / 2,
@@ -18,6 +19,7 @@ export var Plane = function ( width, height, segments_width, segments_height ) {
 	segment_height = height / gridY;
 
 
+  const vertices = [];
 	for( iy = 0; iy < gridY1; iy++ ) {
 
 		for( ix = 0; ix < gridX1; ix++ ) {
@@ -25,12 +27,18 @@ export var Plane = function ( width, height, segments_width, segments_height ) {
 			var x = ix * segment_width - width_half;
 			var y = iy * segment_height - height_half;
 
-			this.vertices.push( new THREE.Vertex( new THREE.Vector3( x, - y, 0 ) ) );
-
+			vertices.push(x, -y, 0);
 		}
 
 	}
 
+  const indices = [];
+  const addFace4 = (i0, i1, i2, i3) => {
+    indices.push(
+      i0, i1, i2,
+      i2, i3, i0,
+    );
+  };
 	for( iy = 0; iy < gridY; iy++ ) {
 
 		for( ix = 0; ix < gridX; ix++ ) {
@@ -40,22 +48,21 @@ export var Plane = function ( width, height, segments_width, segments_height ) {
 			var c = ( ix + 1 ) + gridX1 * ( iy + 1 );
 			var d = ( ix + 1 ) + gridX1 * iy;
 
-			this.faces.push( new THREE.Face4( a, b, c, d ) );
+			addFace4(a, b, c, d);
+      /*
 			this.uvs.push( [
 						new THREE.UV( ix / gridX, iy / gridY ),
 						new THREE.UV( ix / gridX, ( iy + 1 ) / gridY ),
 						new THREE.UV( ( ix + 1 ) / gridX, ( iy + 1 ) / gridY ),
 						new THREE.UV( ( ix + 1 ) / gridX, iy / gridY )
 					] );
-
+      */
 		}
-
 	}
 
-	this.computeCentroids();
-	this.computeNormals();
-
-}
-
-Plane.prototype = new THREE.Geometry();
-Plane.prototype.constructor = Plane;
+	//this.computeCentroids();
+	geo.setIndex(indices);
+  geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(vertices), 3));
+  geo.computeVertexNormals();
+  return geo;
+};
