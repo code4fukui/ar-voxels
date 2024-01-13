@@ -3,7 +3,7 @@
  * based on http://papervision3d.googlecode.com/svn/trunk/as3/trunk/src/org/papervision3d/objects/primitives/Plane.as
  */
 
-var Plane = function ( width, height, segments_width, segments_height ) {
+export var Plane = function ( width, height, segments_width, segments_height ) {
 
 	THREE.Geometry.call( this );
 

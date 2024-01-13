@@ -16,12 +16,10 @@
 	<body>
 
 		<script type="text/javascript" src="js/ThreeCanvas.js"></script>
-		<script type="text/javascript" src="js/Cube.js"></script>
-		<script type="text/javascript" src="js/Plane.js"></script>
 
-		<script src="/js/ga.js"></script>
-
-		<script type="text/javascript">
+		<script type="module">
+			import { Cube } from "./js/Cube.js";
+			import { Plane } from "./js/Plane.js";
 
 			var container, interval,
 			camera, scene, renderer,
