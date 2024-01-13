@@ -1,23 +1,51 @@
+<!DOCTYPE html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="icon" href="data:">
+<title>AR Voxels</title>
+</head><body>
+<div style="margin: 1em; position:fixed; top: 0">
+  <h1>AR Voxels</h1>
+  - <a href=./index.html#useController>mode supported color change (use controllers)</a><br>
+  - <a href=./>mode supported hand track</a><br>
+  - <a href=https://code4fukui.github.io/xrutil/examples/controller.html>debug controllers</a><br>
+  - <a href=https://github.com/code4fukui/ar-voxels/>src on GitHub</a><br>
+</div>
+
+<script type="importmap">
+{
+	"imports": {
+		"three": "https://code4fukui.github.io/three.js/build/three.module.js",
+		"three/addons/": "https://code4fukui.github.io/three.js/examples/jsm/"
+	}
+}
+</script>
 <script type="module">
 import { THREE, scene, camera, renderer } from "https://code4fukui.github.io/egxr.js/egxr.js";
 import { createLine } from "./createLine.js";
+import { XRControllerModelFactory } from "three/addons/webxr/XRControllerModelFactory.js";
+import { XRHandModelFactory } from "three/addons/webxr/XRHandModelFactory.js";
+import { createDebugWindow } from "https://code4fukui.github.io/xrutil/createDebugWindow.js";
+
+const useController = location.hash == "#useController";
 
 const bsize = 0.1;
 const ngrid = 20;
 const wgrid = bsize * ngrid / 2;
 
+// render
+const render = () => {
+  //renderer.render(scene, camera); // use setAnimationLoop instead
+};
+
 // color
 const colors = [0xDF1F1F, 0xDFAF1F, 0x80DF1F, 0x1FDF50, 0x1FDFDF, 0x1F4FDF, 0x7F1FDF, 0xDF1FAF, 0xEFEFEF, 0x303030];
-let color = 0;
 
-const setColor = (n) => {
-  color = (n + colors.length) % colors.length;
-  brush.material.color = new THREE.Color(colors[color]);
+const setColor = (brush, n) => {
+  brush.color = (n + colors.length) % colors.length;
+  brush.material.color = new THREE.Color(colors[brush.color]);
   brush.material.needsUpdate = true;
   render();
 };
-const getColor = () => {
-  return color;
+const getColor = (brush) => {
+  return brush.color;
 };
 
 // Light
@@ -56,16 +84,18 @@ const plane = new THREE.Mesh(new THREE.PlaneGeometry(bsize * ngrid, bsize * ngri
 plane.rotation.x = -90 * Math.PI / 180;
 scene.add(plane);
 
-// cursor
+// brush
 const cube = new THREE.BoxGeometry(bsize, bsize, bsize);
-const brush = new THREE.Mesh(cube, new THREE.MeshBasicMaterial({ color: colors[color], opacity: 0.4, transparent: true }));
-brush.position.y = 2000;
-scene.add(brush);
-
-// render
-const render = () => {
-  //renderer.render(scene, camera); // use setAnimationLoop instead
+const addBrush = () => {
+  const brush = new THREE.Mesh(cube, new THREE.MeshBasicMaterial({ color: 0, opacity: 0.4, transparent: true }));
+  brush.position.y = 2000;
+  scene.add(brush);
+  setColor(brush, 0);
+  brush.isShiftDown = false;
+  brush.objectHovered = null;
+  return brush;
 };
+const brush = addBrush();
 
 // interact
 const objs = [plane];
@@ -75,19 +105,23 @@ const pointer = new THREE.Vector2(0, -100);
 
 const normalMatrix = new THREE.Matrix3();
 
-let objectHovered = null;
-let isShiftDown = false;
-
 const moveIntersects = (intersects, brush) => {
   brush.position.y = 2000;
+  if (brush.objectHovered) {
+    brush.objectHovered.material.opacity = 1;
+    brush.objectHovered.material.transparent = false;
+    brush.objectHovered.material.needsUpdate = true;
+    brush.objectHovered = null;
+  }
+
   if (!intersects.length) return;
   const intersect = intersects[0];
-  if (isShiftDown) {
+  if (brush.isShiftDown) {
     if (intersect.object != plane) {
-      objectHovered = intersect.object;
-      objectHovered.material.opacity = 0.5;
-      objectHovered.material.transparent = true;
-      objectHovered.material.needsUpdate = true;
+      brush.objectHovered = intersect.object;
+      brush.objectHovered.material.opacity = 0.5;
+      brush.objectHovered.material.transparent = true;
+      brush.objectHovered.material.needsUpdate = true;
     }
   } else {
     normalMatrix.getNormalMatrix(intersect.object.matrixWorld);
@@ -101,13 +135,6 @@ const moveIntersects = (intersects, brush) => {
 };
 
 const interact = () => {
-  if (objectHovered) {
-    objectHovered.material.opacity = 1;
-    objectHovered.material.transparent = false;
-    objectHovered.material.needsUpdate = true;
-    objectHovered = null;
-  }
-
   raycaster.setFromCamera(pointer, camera);
   const intersects = raycaster.intersectObjects(objs);
   moveIntersects(intersects, brush);
@@ -117,20 +144,20 @@ const interact = () => {
 document.body.onkeydown = (event) => {
   const key = event.key;
   if (key == "Shift") {
-    isShiftDown = true;
+    brush.isShiftDown = true;
     interact();
     render();
   }
   const nkey = parseInt(key);
   if (nkey >= 0 && nkey <= 9) {
-    setColor(nkey);
+    setColor(brush, nkey);
   }
 };
 
 document.body.onkeyup = (event) => {
   const key = event.key;
   if (key == "Shift") {
-    isShiftDown = false;
+    brush.isShiftDown = false;
     interact();
     render();
   }
@@ -143,7 +170,7 @@ let onMouseDownPhi = 0;
 const onMouseDownPosition = new THREE.Vector2();
 let theta = 45;
 let phi = 60;
-let radius = 3;
+let radius = 2;
 
 document.body.onmousedown = (event) => {
   event.preventDefault();
@@ -160,7 +187,7 @@ const updateCamera = () => {
   camera.position.x = radius * Math.sin(theta * Math.PI / 360) * Math.cos(phi * Math.PI / 360);
   camera.position.y = radius * Math.sin(phi * Math.PI / 360);
   camera.position.z = radius * Math.cos(theta * Math.PI / 360) * Math.cos(phi * Math.PI / 360);
-  camera.lookAt(new THREE.Vector3(0, 1, 0));
+  camera.lookAt(new THREE.Vector3(0, 0, 0));
   camera.updateMatrix();
 };
 
@@ -181,10 +208,10 @@ document.body.onmousemove = (event) => {
   render();
 };
 
-const doIntersects = (intersects) => {
+const doIntersects = (intersects, brush) => {
   if (!intersects.length) return;
   const intersect = intersects[0];
-  if (isShiftDown) {
+  if (brush.isShiftDown) {
     if (intersect.object != plane) {
       scene.remove(intersect.object);
       const n = objs.indexOf(intersect.object);
@@ -196,7 +223,7 @@ const doIntersects = (intersects) => {
     const p = intersect.face.normal.clone().applyMatrix3(normalMatrix).normalize();
     const position = intersect.point.clone().add(p.multiplyScalar(bsize / 4));
 
-    const mat = new THREE.MeshLambertMaterial({ color: colors[color] });
+    const mat = new THREE.MeshLambertMaterial({ color: colors[getColor(brush)] });
     const voxel = new THREE.Mesh(cube, mat);
     voxel.position.x = Math.floor(position.x / bsize) * bsize + bsize / 2;
     voxel.position.y = Math.floor(position.y / bsize) * bsize + bsize / 2;
@@ -221,7 +248,7 @@ document.body.onmouseup = (event) => {
   raycaster.setFromCamera(pointer, camera);
   const intersects = raycaster.intersectObjects(objs);
   
-  doIntersects(intersects);
+  doIntersects(intersects, brush);
   interact();
   render();
 };
@@ -242,14 +269,6 @@ render();
 // controllers
 const tempMatrix = new THREE.Matrix4();
 
-const brush1 = new THREE.Mesh(cube, new THREE.MeshBasicMaterial({ color: colors[color], opacity: 0.4, transparent: true }));
-brush1.position.y = 2000;
-scene.add(brush1);
-
-const brush2 = new THREE.Mesh(cube, new THREE.MeshBasicMaterial({ color: colors[color], opacity: 0.4, transparent: true }));
-brush2.position.y = 2000;
-scene.add(brush2);
-
 const getIntersections = (controller) => {
   tempMatrix.identity().extractRotation(controller.matrixWorld);
   raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
@@ -257,66 +276,154 @@ const getIntersections = (controller) => {
   return raycaster.intersectObjects(objs, false);
 };
 
-const isTouch = (intersection) => {
-  const d = intersection.distance;
-  return d > 0 && d < .10;
-};
-
-const onSelectStart = (event) => {
-  const controller = event.target;
-  const intersects = getIntersections(controller);
-  doIntersects(intersects);
-};
-
-const onSelectEnd = (event) => {
-};
-
 const checkIntersectObjects = (controller, brush) => {
   const intersects = getIntersections(controller);
   moveIntersects(intersects, brush);
 };
 
-const onConnected = (event) => {
-  if ("gamepad" in event.data) {
-    if ("axes" in event.data.gamepad) { //we have a modern controller
-      this.controller.gamepad = event.data.gamepad;
+//const debug = createDebugWindow(0, 0, -2)
+//scene.add(debug);
+
+const controllers = [];
+
+const initController = (c) => {
+  controllers.push(c);
+  //c.add(c.debug = createDebugWindow(0, 0, -1));
+  
+  const brush = addBrush();
+  c.brush = brush;
+
+  c.bkbtn = {};
+  c.pressing = {};
+  c.pressed = {};
+  c.released = {};  
+  c.updateData = () => {
+    const btns = c.motionController?.data;
+    if (btns) {
+      //c.debug.set(btns.find(i => i.id == "a-button") || "null");
+      //c.debug.set(btns);
+      const names = ["xr-standard-trigger", "xr-standard-squeeze", "a-button", "b-button", "x-button", "y-button"];
+      for (const name of names) {
+        const b = btns.find(i => i.id == name);
+        if (b) {
+          const btn = b.button > 0;
+          c.pressing[name] = btn;
+          c.pressed[name] = btn && !c.bkbtn[name];
+          c.released[name] = c.bkbtn[name] && !btn;
+          c.bkbtn[name] = btn;
+        }
+      }
     }
+    if (useController) {
+      c.isActive = btns != null;
+    } else {
+      c.isActive = c.position.x != 0 || c.position.y != 0 || c.position.z != 0;
+    }
+    c.isController = btns != null && btns["xr-standard-squeeze"] != null;
+  };
+};
+
+/*
+renderer.xr.addEventListener("sessionstart", (event) => {
+  const session = renderer.xr.getSession();
+  session.addEventListener('inputsourceschange', (event) => {
+    debug.set(event);
+    for (let inputSource of event.added) {
+      if (inputSource.targetRayMode === 'tracked-pointer') {
+        // これはトラッキングされたコントローラーです
+      } else if (inputSource.targetRayMode === 'gaze') {
+        // これはゲイズベースの入力です (おそらくヘッドトラッキング)
+      } else if (inputSource.targetRayMode === 'screen') {
+        // これは画面上のタッチやクリックを示します
+      }
+    }
+    for (let inputSource of event.removed) {
+      // 入力ソースが切断されたときの処理
+    }
+  });
+});
+*/
+
+
+// controller
+const initControllerGrip = () => {
+  const controllerModelFactory = new XRControllerModelFactory();
+  for (let i = 0; i < 2; i++) {
+    const controllerGrip = renderer.xr.getControllerGrip(i);
+    if (!controllerGrip) continue;
+    const controllerModel = controllerModelFactory.createControllerModel(controllerGrip);
+    controllerGrip.add(controllerModel);
+    controllerGrip.add(createLine(5));
+    scene.add(controllerGrip);
+    initController(controllerModel);
   }
 };
 
-const controller1 = renderer.xr.getController(0);
-controller1.addEventListener("selectstart", onSelectStart);
-controller1.addEventListener("selectend", onSelectEnd);
-//controller1.addEventListener("connected", onConnected);
-scene.add(controller1);
-const controller2 = renderer.xr.getController(1);
-controller2.addEventListener("selectstart", onSelectStart);
-controller2.addEventListener("selectend", onSelectEnd);
-//controller2.addEventListener("connected", onConnected);
-scene.add(controller2);
-
-// line
-controller1.add(createLine(5));
-controller2.add(createLine(5));
-
-const handleController = (controller, brush) => {
-  /*
-  const btns = controller.gamepad?.buttons;
-  if (!btns || btns.length < 6) return;
-  if (btns[4] < 0) { // A
-    setColor(getColor() + 1);
-  } else if (btns[5] < 0) { // B
-    setColor(getColor() - 1);
+// hand track
+const initHand = () => {
+  for (let i = 0; i < 2; i++) {
+    const controller = renderer.xr.getController(i);
+    if (!controller) continue;
+    controller.addEventListener("selectstart", () => {
+      const intersects = getIntersections(controller);
+      doIntersects(intersects, controller.brush);
+    });
+    controller.add(createLine(5));
+    scene.add(controller);
+    initController(controller);
   }
-  isShiftDown = btns[1] < 0; // grip
+
+  /*
+  // hand track 2
+  const handModelFactory = new XRHandModelFactory();
+  for (let i = 0; i < 2; i++) {
+    const hand = renderer.xr.getHand(i);
+    debug.set(hand);
+    //debug.log(i + " " + hand);
+    if (!hand) continue;
+    const handModel = handModelFactory.createHandModel(hand);
+    //debug.log(i + " model " + handModel);
+    hand.add(handModel);
+    hand.add(createLine(5));
+    scene.add(hand);
+    initController(handModel);
+  }
   */
-  checkIntersectObjects(controller, brush);
+};
+
+if (useController) {
+  initControllerGrip();
+} else {
+  initHand();
+}
+
+const handleController = (c) => {
+  if (!c.isActive) return;
+  const brush = c.brush;
+  brush.isShiftDown = c.pressing["xr-standard-squeeze"]; // grip
+  if (c.pressed["a-button"] || c.pressed["x-button"]) { // A
+    setColor(brush, getColor(brush) + 1);
+  } else if (c.pressed["b-button"] || c.pressed["y-button"]) { // B
+    setColor(brush, getColor(brush) - 1);
+  } else if (c.pressed["xr-standard-trigger"]) { // trigger
+    if (useController) {
+      const intersects = getIntersections(c);
+      doIntersects(intersects, brush);
+    }
+  }
+  checkIntersectObjects(c, brush);
 };
 
 // render loop
 renderer.setAnimationLoop(() => {
-  handleController(controller1, brush1);
-  handleController(controller2, brush2);
+  for (const c of controllers) {
+    c.updateData();
+    handleController(c);
+    if (c.isActive) {
+      brush.position.y = 2000;
+    }
+  }
+
   renderer.render(scene, camera);
 });
 </script>
