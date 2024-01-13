@@ -43,11 +43,10 @@ brush.position.y = 2000;
 scene.add(brush);
 
 const render = () => {
-  renderer.render(scene, camera);
+  //renderer.render(scene, camera); // use setAnimationLoop instead
 };
 
 // interact
-
 const objs = [plane, brush];
 
 const raycaster = new THREE.Raycaster();
@@ -66,8 +65,8 @@ const interact = () => {
     objectHovered = null;
   }
 
-	raycaster.setFromCamera(pointer, camera);
-	const intersects = raycaster.intersectObjects(objs);
+  raycaster.setFromCamera(pointer, camera);
+  const intersects = raycaster.intersectObjects(objs);
   
   brush.position.y = 2000;
   if (intersects.length > 0) {
@@ -160,8 +159,8 @@ document.body.onmousemove = (event) => {
     updateCamera();
   }
 
-	pointer.x = event.clientX / window.innerWidth * 2 - 1;
-	pointer.y = -event.clientY / window.innerHeight * 2 + 1;
+  pointer.x = event.clientX / window.innerWidth * 2 - 1;
+  pointer.y = -event.clientY / window.innerHeight * 2 + 1;
   interact();
   render();
 };
@@ -178,8 +177,8 @@ document.body.onmouseup = (event) => {
     return;
   }
 
-	raycaster.setFromCamera(pointer, camera);
-	const intersects = raycaster.intersectObjects(objs);
+  raycaster.setFromCamera(pointer, camera);
+  const intersects = raycaster.intersectObjects(objs);
   
   if (intersects.length > 0) {
     const intersect = intersects[0].object != brush ? intersects[0] : intersects[1];
@@ -220,4 +219,8 @@ document.body.onmousewheel = (event) => {
 updateCamera();
 interact();
 render();
+
+renderer.setAnimationLoop(() => {
+  renderer.render(scene, camera);
+});
 </script>
