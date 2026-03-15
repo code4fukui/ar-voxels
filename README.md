@@ -1,5 +1,7 @@
 # AR Voxels
 
+> 日本語のREADMEはこちらです: [README.ja.md](README.ja.md)
+
 AR Voxels is a web-based augmented reality application that allows users to create and manipulate 3D voxel structures in a virtual environment.
 
 ## Demo
