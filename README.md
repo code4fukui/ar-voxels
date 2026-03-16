@@ -30,4 +30,4 @@ git clone https://github.com/code4fukui/ar-voxels.git
 This project does not use any external data or APIs.
 
 ## License
-This project is open-source and available under the [MIT License](https://github.com/code4fukui/ar-voxels/blob/main/LICENSE).
+MIT License — see [LICENSE](LICENSE).
